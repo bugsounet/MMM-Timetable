@@ -1,6 +1,6 @@
 
 //
-// MMM-Timetable
+// MMM-Timetable by eouia and modified by bugsounet
 //
 
 
@@ -24,10 +24,13 @@ Module.register("MMM-Timetable", {
     mode: "5days", // "today", "5days", "7days"
     refreshInterval: 1000*10,
     displayEndTime: false,
+    displayPeriod: true,
+    title: null,
     schedules: [ //array of schedules
       {
         title: "Slytherin 2nd Year",
-        file:null,
+        file_W1:null, // csv semaine pair
+	file_W2:null, // csv semaine impair
         schedule: [
           // [weekday, starttime(24h), endtime(24h), title, subtitle, backgroundColor(optional)]
           // weekday : 1 for Monday, 2 for Tuesday, ... 7 for Sunday
@@ -130,26 +133,52 @@ Module.register("MMM-Timetable", {
     if (noti == "DOM_OBJECTS_CREATED") {
       this.draw()
     }
+    if(noti == "TIMETABLE_CALL") {
+	this.draw(payload)
+    }
   },
 
-  draw: function() {
-    this.today = moment().isoWeekday()
-    this.drawView(this.config.schedules[this.index])
-    this.index++;
-    var timer;
-    if (this.index >= this.config.schedules.length) {
-      this.index = 0
+  draw: function(payload) {
+    this.today = moment().isoWeekday();
+    if (payload) { // si payload ...
+	for (var i = 0; i < this.config.schedules.length; i++) { // boucle sur tous les schedules
+		if (this.config.schedules[i].title == payload) { // recherche match sur le payload
+			this.index = i; // mise a jour de l'index
+		}
+	 }
     }
+    this.drawView(this.config.schedules[this.index]) // affiche le schedule
+    console.log("[MMM-TT] Display TimeTable : " + this.config.schedules[this.index].title);
+    this.index++; // index +1 for Timer
+    if (this.index >= this.config.schedules.length) { // if every schedules was read -> return to the first
+	this.index = 0
+    }
+    if (this.config.refreshInterval !=0) this.resetTimer();
+  },
 
-    clearTimeout(timer)
-    timer = null
-    timer = setTimeout(()=>{
-      this.draw()
-    }, this.config.refreshInterval)
+  resetTimer: function() {
+	var self = this;
+	clearInterval(self.interval);
+	self.counter = this.config.refreshInterval;
+
+	self.interval = setInterval(function() {
+		self.counter -=1000;
+		if (self.counter <= 0) {
+			clearInterval(self.interval);
+			self.draw();
+		}
+	},1000);
   },
 
   drawSchedule: function(schedule) {
-    document.getElementById("TTABLE_TITLE").innerHTML = schedule.title
+    var now = moment();
+    var noWeek = now.week();
+    var fullTitle;
+    if (this.config.mode == '5days' && this.today > 5) noWeek++; // announces next week's schedule
+    if (this.config.title) fullTitle = this.config.title + " " + noWeek + " - " + schedule.title // personalized title
+    else fullTitle = schedule.title; // eouia Default
+
+    document.getElementById("TTABLE_TITLE").innerHTML = fullTitle;
     var dayFilter = {
       "today" : [this.today],
       "5days" : [1,2,3,4,5],
@@ -279,10 +308,14 @@ Module.register("MMM-Timetable", {
         subtitle.className = "subtitle"
         subtitle.innerHTML = item[4]
         var period = document.createElement("p")
-        period.className = "period"
-        period.innerHTML = timeFormat(item[1], this.config.timeFormat) + " - " + timeFormat(item[2], this.config.timeFormat)
-        elm.appendChild(title)
-        elm.appendChild(period)
+	if (this.config.displayPeriod) {
+        	period.className = "period"
+        	period.innerHTML = timeFormat(item[1], this.config.timeFormat) + " - " + timeFormat(item[2], this.config.timeFormat)
+        	elm.appendChild(title)
+        	elm.appendChild(period)
+	} else {
+		elm.appendChild(title)
+	}
         elm.appendChild(subtitle)
         day.appendChild(elm)
       }
@@ -302,11 +335,27 @@ Module.register("MMM-Timetable", {
         this.drawSchedule(schedule)
       }
     }
-    if (schedule.file) {
-      this.readCSV(schedule.file, schedule, draw)
+    if (schedule.file_W1) {
+	var now = moment();
+	var noWeek = now.week();
+
+	if (this.config.mode == '5days' && this.today > 5) noWeek++;
+
+	if(schedule.file_W2 && this.Impair(noWeek)) {
+		//console.log("INFO : Semaine impair -- " + noWeek);
+		this.readCSV(schedule.file_W2, schedule, draw)
+    	} else {
+		//console.log("INFO : Semaine pair -- " + noWeek);
+		this.readCSV(schedule.file_W1, schedule, draw)
+    	}
     } else {
       draw(schedule)
     }
+  },
+
+  Impair : function (semaine){
+	semaine=parseInt(semaine);
+	return ((semaine & 1)=='0')?false:true;
   },
 
   readCSV: function (file, schedule, callback) {
