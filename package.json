@@ -1,0 +1,24 @@
+{
+  "name": "MMM-Timetable",
+  "version": "2.0.0",
+  "description": "Display school Timetable",
+  "main": "MMM-Timetable.js",
+  "keywords": [
+    "magic mirror",
+    "module",
+    "timetable"
+  ],
+  "author": [
+    "eouia",
+    "bugsounet"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bugsounet/MMM-Timetable/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bugsounet/MMM-Timetable"
+  },
+  "homepage": "https://github.com/bugsounet/MMM-Timetable"
+}

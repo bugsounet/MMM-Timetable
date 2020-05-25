@@ -21,48 +21,17 @@ Module.register("MMM-Timetable", {
     timeFormat: "hh:mm A",
     height: "700px",
     width: "150px",
-    mode: "5days", // "today", "5days", "7days"
+    filter: null, // "today"
     refreshInterval: 1000*10,
     displayEndTime: false,
-    displayPeriod: true,
-    title: null,
+    displayPeriod: false,
+    displayWeekTitle: null,
     schedules: [ //array of schedules
       {
         title: "Slytherin 2nd Year",
-        file_W1:null, // csv semaine pair
-	file_W2:null, // csv semaine impair
-        schedule: [
-          // [weekday, starttime(24h), endtime(24h), title, subtitle, backgroundColor(optional)]
-          // weekday : 1 for Monday, 2 for Tuesday, ... 7 for Sunday
-          [1, "0730", "0900", "Breakfast", "", "rgba(0,255,0, 0.5)"],
-          [2, "0730", "0900", "Breakfast", "", "rgba(0,255,0, 0.5)"],
-          [3, "0730", "0900", "Breakfast", "", "rgba(0,255,0, 0.5)"],
-          [4, "0730", "0900", "Breakfast", "", "rgba(0,255,0, 0.5)"],
-          [5, "0730", "0900", "Breakfast", "", "rgba(0,255,0, 0.5)"],
-          [1, "1200", "1300", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [2, "1200", "1220", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [2, "1243", "1245", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [3, "1200", "1300", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [4, "1200", "1300", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [5, "1200", "1300", "Lunch", "", "rgba(0,255,0, 0.5)"],
-          [1, "1800", "1900", "Dinner", "", "rgba(0,255,0, 0.5)"],
-          [2, "1800", "1900", "Dinner", "", "rgba(0,255,0, 0.5)"],
-          [3, "1800", "1900", "Dinner", "", "rgba(0,255,0, 0.5)"],
-          [4, "1800", "1900", "Dinner", "", "rgba(0,255,0, 0.5)"],
-          [5, "1800", "1900", "Dinner", "", "rgba(0,255,0, 0.5)"],
-          [1, "1100", "1145", "Transfiguration", "w/Ravenclaw"],
-          [1, "1315", "1400", "Charms", "w/Hufflepuff"],
-          [2, "0915", "1045", "Transfiguration", "w/Ravenclaw"],
-          [2, "1500", "1630", "Herbology", "w/Ravenclaw"],
-          [3, "0915", "1045", "Defense Against The Dark Art", "w/Gryffindor", "rgba(255,0,0,0.5)"],
-          [3, "1100", "1145", "Charms", "w/Hufflepuff"],
-          [3, "1315", "1445", "History of Magic", "w/Hufflepuff"],
-          [3, "1500", "1630", "Potions", "w/Gryffindor"],
-          [4, "1100", "1145", "Defense Against The Dark Art", "w/Gryffindor"],
-          [5, "1315", "1400", "Potions", "w/Gryffindor"],
-        ]
+        even: "test.csv", // csv semaine pair (even)
+        odd:null, // csv semaine impair (odd)
       },
-
     ]
   },
 
@@ -103,7 +72,7 @@ Module.register("MMM-Timetable", {
     timeline.style.height = this.config.height
     tlCol.appendChild(timeline)
     wrapper.appendChild(tlCol)
-    for (i = 1; i <= 7; i++) {
+    for (i = 1; i <= 5; i++) {
       var dayCol = document.createElement("div")
       dayCol.id = "TTABLE_DAYCOLUMN_" + i
       var dayHeader = document.createElement("div")
@@ -119,7 +88,6 @@ Module.register("MMM-Timetable", {
       wrapper.appendChild(dayCol)
     }
 
-
     container.appendChild(wrapper)
     return container
   },
@@ -127,6 +95,9 @@ Module.register("MMM-Timetable", {
   start: function() {
     this.index = 0
     this.today = 0
+    this.schedule = []
+    this.interval = null
+    this.counter = null
   },
 
   notificationReceived: function(noti, payload, sender) {
@@ -134,58 +105,57 @@ Module.register("MMM-Timetable", {
       this.draw()
     }
     if(noti == "TIMETABLE_CALL") {
-	this.draw(payload)
+      this.draw(payload)
     }
   },
 
   draw: function(payload) {
     this.today = moment().isoWeekday();
     if (payload) { // si payload ...
-	for (var i = 0; i < this.config.schedules.length; i++) { // boucle sur tous les schedules
-		if (this.config.schedules[i].title == payload) { // recherche match sur le payload
-			this.index = i; // mise a jour de l'index
-		}
-	 }
+      for (var i = 0; i < this.config.schedules.length; i++) { // boucle sur tous les schedules
+        if (this.config.schedules[i].title == payload) { // recherche match sur le payload
+          this.index = i; // mise a jour de l'index
+        }
+      }
     }
     this.drawView(this.config.schedules[this.index]) // affiche le schedule
-    console.log("[MMM-TT] Display TimeTable : " + this.config.schedules[this.index].title);
+    console.log("[TIMETABLE] Display TimeTable: " + this.config.schedules[this.index].title);
     this.index++; // index +1 for Timer
     if (this.index >= this.config.schedules.length) { // if every schedules was read -> return to the first
-	this.index = 0
+      this.index = 0
     }
     if (this.config.refreshInterval !=0) this.resetTimer();
   },
 
   resetTimer: function() {
-	var self = this;
-	clearInterval(self.interval);
-	self.counter = this.config.refreshInterval;
+    clearInterval(this.interval)
+    this.interval = null
+    this.counter = this.config.refreshInterval
 
-	self.interval = setInterval(function() {
-		self.counter -=1000;
-		if (self.counter <= 0) {
-			clearInterval(self.interval);
-			self.draw();
-		}
-	},1000);
+    this.interval = setInterval( () => {
+      this.counter -=1000
+      if (this.counter <= 0) {
+        clearInterval(this.interval)
+        this.interval = null
+        this.draw()
+      }
+    },1000)
   },
 
   drawSchedule: function(schedule) {
-    var now = moment();
-    var noWeek = now.week();
-    var fullTitle;
-    if (this.config.mode == '5days' && this.today > 5) noWeek++; // announces next week's schedule
-    if (this.config.title) fullTitle = this.config.title + " " + noWeek + " - " + schedule.title // personalized title
+    var now = moment()
+    var noWeek = now.week()
+    var fullTitle
+    var filter = []
+    if (!this.config.filter && this.today > 5) noWeek++; // announces next week's schedule
+    if (this.config.displayWeekTitle) fullTitle = this.config.displayWeekTitle + " " + noWeek + " - " + schedule.title // personalized title
     else fullTitle = schedule.title; // eouia Default
 
     document.getElementById("TTABLE_TITLE").innerHTML = fullTitle;
-    var dayFilter = {
-      "today" : [this.today],
-      "5days" : [1,2,3,4,5],
-      "7days" : [1,2,3,4,5,6,7]
-    }
-    var filter = dayFilter[this.config.mode]
-    for(i=1; i<=7; i++) {
+    if (this.config.filter == "today") filter = [this.today]
+    else filter = [1,2,3,4,5]
+
+    for(i=1; i<=5; i++) {
       var prev = document.getElementById("TTABLE_DAY_" + i)
       if (typeof prev !== "undefined") {
         prev.innerHTML = ""
@@ -206,12 +176,12 @@ Module.register("MMM-Timetable", {
     var tlItem = new Set()
     var maxTl = null
 
-    for(var i in schedule.schedule) {
-      var item = schedule.schedule[i]
+    for(var i in this.schedule) {
+      var item = this.schedule[i]
       if (maxTl <= item[2]) {
         maxTl = item[2]
       }
-      if (this.config.mode == 'today') {
+      if (this.config.filter == 'today') {
         if (item[0] == this.today || item[0] == 0) {
           if(typeof validItem[item[0]] == "undefined") {
             validItem[item[0]] = []
@@ -222,7 +192,7 @@ Module.register("MMM-Timetable", {
             tlItem.add(item[2])
           }
         }
-      } else if (this.config.mode == '5days') {
+      } else {
         if (item[0] <= 5) {
           if(typeof validItem[item[0]] == "undefined") {
             validItem[item[0]] = []
@@ -233,15 +203,6 @@ Module.register("MMM-Timetable", {
             tlItem.add(item[2])
           }
         }
-      } else {
-        if(typeof validItem[item[0]] == "undefined") {
-          validItem[item[0]] = []
-        }
-        validItem[item[0]].push(item)
-        tlItem.add(item[1])
-        if (this.config.displayEndTime) {
-          tlItem.add(item[2])
-        }
       }
     }
     tlItem.add(maxTl)
@@ -249,7 +210,6 @@ Module.register("MMM-Timetable", {
     var start = convertTime(tl.shift())
     var end = convertTime(tl.pop())
     var duration = end - start
-
 
     var now = convertTime(moment().format("HHmm"))
     if (start < now && now < end) {
@@ -308,19 +268,18 @@ Module.register("MMM-Timetable", {
         subtitle.className = "subtitle"
         subtitle.innerHTML = item[4]
         var period = document.createElement("p")
-	if (this.config.displayPeriod) {
-        	period.className = "period"
-        	period.innerHTML = timeFormat(item[1], this.config.timeFormat) + " - " + timeFormat(item[2], this.config.timeFormat)
-        	elm.appendChild(title)
-        	elm.appendChild(period)
-	} else {
-		elm.appendChild(title)
-	}
+        if (this.config.displayPeriod) {
+                period.className = "period"
+                period.innerHTML = timeFormat(item[1], this.config.timeFormat) + " - " + timeFormat(item[2], this.config.timeFormat)
+                elm.appendChild(title)
+                elm.appendChild(period)
+        } else {
+          elm.appendChild(title)
+        }
         elm.appendChild(subtitle)
         day.appendChild(elm)
       }
     }
-
   },
 
   drawView: function(schedule) {
@@ -335,27 +294,25 @@ Module.register("MMM-Timetable", {
         this.drawSchedule(schedule)
       }
     }
-    if (schedule.file_W1) {
-	var now = moment();
-	var noWeek = now.week();
-
-	if (this.config.mode == '5days' && this.today > 5) noWeek++;
-
-	if(schedule.file_W2 && this.Impair(noWeek)) {
-		//console.log("INFO : Semaine impair -- " + noWeek);
-		this.readCSV(schedule.file_W2, schedule, draw)
-    	} else {
-		//console.log("INFO : Semaine pair -- " + noWeek);
-		this.readCSV(schedule.file_W1, schedule, draw)
-    	}
+    if (schedule.even) {
+      var now = moment();
+      var noWeek = now.week();
+      if (!this.config.filter && this.today > 5) noWeek++;
+      if(schedule.odd && this.Impair(noWeek)) {
+        //console.log("INFO : Semaine impair -- " + noWeek);
+        this.readCSV(schedule.odd, schedule, draw)
+      } else {
+        //console.log("INFO : Semaine pair -- " + noWeek);
+        this.readCSV(schedule.even, schedule, draw)
+      }
     } else {
       draw(schedule)
     }
   },
 
   Impair : function (semaine){
-	semaine=parseInt(semaine);
-	return ((semaine & 1)=='0')?false:true;
+    semaine=parseInt(semaine);
+    return ((semaine & 1)=='0')?false:true;
   },
 
   readCSV: function (file, schedule, callback) {
@@ -373,7 +330,7 @@ Module.register("MMM-Timetable", {
               res.push(a[0])
             }
           }
-          schedule.schedule = res
+          this.schedule = res
           callback(schedule)
         }
       }
