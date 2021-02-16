@@ -1,13 +1,13 @@
 # MMM-Timetable
 Display timetable for school or work.
 
-### Screenshot
+## Screenshot
 ![screenshot](https://github.com/eouia/MMM-Timetable/blob/master/ttable_1.png?raw=true)
 
 ![screenshot](https://github.com/eouia/MMM-Timetable/blob/master/ttable_2.png?raw=true)
 
 
-### Installation
+## Installation
 
 1. Install Module
 ```sh
@@ -85,3 +85,6 @@ git clone https://github.com/eouia/MMM-Timetable.git
 
 3. Warning.
 When you use CSV(comma separated), check time format. use "0900" instead "900".
+
+## Support and Helping
+Support is now on [the 4th Party Modules Forum](http://forum.bugsounet.fr)
